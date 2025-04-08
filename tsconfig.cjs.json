@@ -1,0 +1,21 @@
+{
+    "extends": "./tsconfig.base.json",
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "CommonJS",
+        "outDir": "./dist/cjs",
+        "rootDir": "./src",
+        "tsBuildInfoFile": "./dist/cjs/.tsbuildinfo",
+        "moduleResolution": "node",
+        "declaration": true,
+        "declarationDir": "./dist/cjs",
+        "sourceMap": true
+    },
+    "files": [
+        "./src/index.ts",
+        "./src/utils.ts",
+        "./src/types.ts",
+        "./src/fetch-client.ts"
+    ],
+    "exclude": ["node_modules", "dist", "test"]
+}

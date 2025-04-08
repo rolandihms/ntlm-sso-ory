@@ -1,0 +1,21 @@
+{
+    "extends": "./tsconfig.base.json",
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "ESNext",
+        "outDir": "./dist/esm",
+        "rootDir": "./src",
+        "tsBuildInfoFile": "./dist/esm/.tsbuildinfo",
+        "moduleResolution": "node",
+        "declaration": true,
+        "declarationDir": "./dist/esm",
+        "sourceMap": true
+    },
+    "files": [
+        "./src/index.ts",
+        "./src/utils.ts",
+        "./src/types.ts",
+        "./src/fetch-client.ts"
+    ],
+    "exclude": ["node_modules", "dist", "test"]
+}

@@ -20,7 +20,7 @@ export interface LoginResponse {
 
 export interface TokenResponse {
     access_token: string;
-    expires_in: number;
-    scope: string;
-    token_type: string;
+    expires_in?: number;
+    token_type?: string;
+    scope?: string;
 }

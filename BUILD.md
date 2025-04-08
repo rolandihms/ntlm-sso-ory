@@ -22,10 +22,12 @@ This document outlines the steps to build and publish the ntlm-sso-ory package.
 
 3. Build the package locally:
    ```bash
-   npm run build
+   npm run build         # Builds both CJS and ESM versions
+   npm run build:cjs    # Builds only CommonJS version
+   npm run build:esm    # Builds only ES modules version
    ```
 
-The build output will be in the `dist` directory.
+The build output will be in the `dist` directory with separate `cjs` and `esm` subdirectories.
 
 ## Publishing to NPM
 
@@ -41,7 +43,7 @@ The build output will be in the `dist` directory.
 
 3. Build the package:
    ```bash
-   npm run build
+   npm run build         # Builds both CJS and ESM versions
    ```
 
 4. Review the package contents:
@@ -58,7 +60,8 @@ The build output will be in the `dist` directory.
 ## Package Structure
 
 The published package will include:
-- `dist/` - Compiled JavaScript and TypeScript declaration files
+- `dist/cjs/` - CommonJS modules and TypeScript declaration files
+- `dist/esm/` - ES modules and TypeScript declaration files
 - `README.md` - Package documentation
 - `package.json` - Package metadata and dependencies
 

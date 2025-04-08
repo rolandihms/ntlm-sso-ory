@@ -47,8 +47,14 @@ npm install ntlm-sso-ory
 
 The package exports a single function `handleNtlmAuth` that manages the NTLM authentication flow with an ORY server. It can be used with any framework or vanilla Node.js application.
 
+You can import the package using either ES modules or CommonJS:
+
 ```typescript
+// ES modules
 import { handleNtlmAuth } from 'ntlm-sso-ory';
+
+// CommonJS
+const { handleNtlmAuth } = require('ntlm-sso-ory');
 
 // Configuration
 const config = {
