@@ -1,6 +1,6 @@
 {
     "name": "ntlm-sso-ory",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Framework-agnostic NTLM authentication helper for ORY",
     "main": "dist/src/index.js",
     "types": "dist/src/index.d.ts",
@@ -23,7 +23,7 @@
         "authentication",
         "oauth"
     ],
-    "author": "",
+    "author": "Roland Ihms @ NamPost",
     "license": "MIT",
     "dependencies": {
         "fetch-cookie": "^3.1.0",

@@ -53,12 +53,13 @@ import { handleNtlmAuth } from 'ntlm-sso-ory';
 // Configuration
 const config = {
     clientId: 'your-client-id',
-    issuerUrl: 'https://your-ory-server.com/'
+    issuerUrl: 'https://your-ory-server.com/',
+    debug: false //optional, defaults to false
 };
 
 // Example usage with Express
 app.use(async (req, res, next) => {
-    const result = await handleNtlmAuth(req.headers, config);
+    const result = await handleNtlmAuth(req.headers, config, config.debug);
     
     if (result.status === 'challenge') {
         // Send NTLM challenge back to client
@@ -79,7 +80,7 @@ app.use(async (req, res, next) => {
 
 // Example usage with Fastify
 app.addHook('preHandler', async (request, reply) => {
-    const result = await handleNtlmAuth(request.headers, config);
+    const result = await handleNtlmAuth(request.headers, config, config.debug);
     
     if (result.status === 'challenge') {
         reply.headers(result.headers);

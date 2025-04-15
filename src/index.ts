@@ -27,9 +27,7 @@ export async function handleNtlmAuth(
         }
 
         // Process NTLM Type 1/3 message
-        const ntlmType2 = await getNtlmChallenge(headers.authorization, config.issuerUrl);
-        
-        console.log("ntlmType2 in handleNtlmAuth:", ntlmType2);
+        const ntlmType2 = await getNtlmChallenge(headers.authorization, config.issuerUrl, config.debug);
         
         // If we got a Type 2 message back, it was a Type 1 message
         if (ntlmType2) {
@@ -44,16 +42,29 @@ export async function handleNtlmAuth(
         // If we didn't get a Type 2 message, it was likely a Type 3 message
         // Process OAuth flow
         try {
-            const oauthChallenge = await getOAuthChallenge(config.issuerUrl, config.clientId);
-            const loginResponse = await processLogin(config.issuerUrl, oauthChallenge.challenge, headers.authorization);
-            const tokenResponse = await exchangeCodeForToken(config.issuerUrl, config.clientId, loginResponse.code);
+            const oauthChallenge = await getOAuthChallenge(config.issuerUrl, config.clientId, config.debug);
+            
+            if (!oauthChallenge || !oauthChallenge.challenge) {
+                throw new Error('Invalid OAuth challenge response');
+            }
+            
+            const loginResponse = await processLogin(config.issuerUrl, oauthChallenge.challenge, headers.authorization, config.debug);
+            
+            if (!loginResponse || !loginResponse.code) {
+                throw new Error('Invalid login response');
+            }
+            
+            const tokenResponse = await exchangeCodeForToken(config.issuerUrl, config.clientId, loginResponse.code, config.debug);
+            
+            if (!tokenResponse || !tokenResponse.access_token) {
+                throw new Error('Invalid token response');
+            }
 
             return {
                 status: 'success',
                 token: tokenResponse.access_token
             };
         } catch (innerError) {
-            console.error("Error in OAuth flow:", innerError);
             return {
                 status: 'error',
                 error: innerError instanceof Error ? innerError.message : 'Error in OAuth flow'
@@ -61,7 +72,6 @@ export async function handleNtlmAuth(
         }
 
     } catch (error) {
-        console.error("Error in handleNtlmAuth:", error);
         return {
             status: 'error',
             error: error instanceof Error ? error.message : 'Unknown error occurred'

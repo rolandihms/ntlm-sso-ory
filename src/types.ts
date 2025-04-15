@@ -1,6 +1,7 @@
 export interface NtlmAuthConfig {
     clientId: string;
     issuerUrl: string;
+    debug?: boolean;
 }
 
 export interface NtlmAuthResult {
