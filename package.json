@@ -1,6 +1,6 @@
 {
     "name": "ntlm-sso-ory",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "Framework-agnostic NTLM authentication helper for ORY",
     "main": "dist/src/index.js",
     "types": "dist/src/index.d.ts",
