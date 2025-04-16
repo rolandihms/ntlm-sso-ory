@@ -1,5 +1,12 @@
-import type { NtlmAuthConfig, NtlmAuthResult } from "./types";
-import { getNtlmChallenge, getOAuthChallenge, processLogin, exchangeCodeForToken } from "./utils";
+import type {NtlmAuthConfig, NtlmAuthResult} from "./types";
+import {
+    getNtlmChallenge,
+    getOAuthChallenge,
+    processLogin,
+    exchangeCodeForToken,
+    getNtlmMessageType,
+    parseNtlmHeader,
+} from "./utils";
 
 export * from "./types";
 
@@ -11,70 +18,123 @@ export async function handleNtlmAuth(
         // Check if Authorization header is present
         if (!headers.authorization) {
             return {
-                status: 'challenge',
+                status: "challenge",
                 headers: {
-                    'WWW-Authenticate': 'NTLM'
-                }
+                    "WWW-Authenticate": "NTLM",
+                },
             };
         }
 
         // Validate the authorization header format
-        if (!headers.authorization.startsWith('NTLM ')) {
+        if (!headers.authorization.startsWith("NTLM ")) {
             return {
-                status: 'error',
-                error: 'Invalid authorization header'
+                status: "error",
+                error: "Invalid authorization header",
             };
         }
 
-        // Process NTLM Type 1/3 message
-        const ntlmType2 = await getNtlmChallenge(headers.authorization, config.issuerUrl, config.debug);
-        
-        // If we got a Type 2 message back, it was a Type 1 message
-        if (ntlmType2) {
+        const ntlmBuffer = parseNtlmHeader(headers.authorization.toString());
+        if (!ntlmBuffer) {
             return {
-                status: 'challenge',
-                headers: {
-                    'WWW-Authenticate': ntlmType2
-                }
+                status: "error",
+                error: "Invalid NTLM message",
             };
         }
-        
+        const type = getNtlmMessageType(ntlmBuffer);
+
+        // console.log("--------------------NTLM Message Type--------------------");
+        // console.log("NTLM Message Type:", type);
+        // console.log(
+        //     "----------------------------------------------------------"
+        // );
+       
+        if (type === 1) {
+            // console.log(
+            //     "--------------------Process NTLM Type 1/3 message--------------------"
+            // );
+            // Process NTLM Type 1/3 message
+            const ntlmType2 = await getNtlmChallenge(
+                headers.authorization,
+                config.issuerUrl,
+                config.debug
+            );
+
+            //Ensure a valid response is received form the Challenge Endpoint
+            if (!ntlmType2.success) {
+                throw new Error(
+                    "Invalid challenge response:" + ntlmType2.error
+                );
+            }
+            // If we got a Type 2 message back, it was a Type 1 message
+            if (ntlmType2.success && ntlmType2.header) {
+                return {
+                    status: "challenge",
+                    headers: {
+                        "WWW-Authenticate": ntlmType2.header
+                            ? ntlmType2.header?.toString()
+                            : "",
+                    },
+                };
+            }
+        }
+        // console.log(
+        //     "--------------------HAS NTLM Type 3 message--------------------"
+        // );
         // If we didn't get a Type 2 message, it was likely a Type 3 message
         // Process OAuth flow
         try {
-            const oauthChallenge = await getOAuthChallenge(config.issuerUrl, config.clientId, config.debug);
-            
+            const oauthChallenge = await getOAuthChallenge(
+                config.issuerUrl,
+                config.clientId,
+                config.debug
+            );
+
             if (!oauthChallenge || !oauthChallenge.challenge) {
-                throw new Error('Invalid OAuth challenge response');
+                throw new Error("Invalid OAuth challenge response");
             }
-            
-            const loginResponse = await processLogin(config.issuerUrl, oauthChallenge.challenge, headers.authorization, config.debug);
-            
+
+            const loginResponse = await processLogin(
+                config.issuerUrl,
+                oauthChallenge.challenge,
+                headers.authorization,
+                config.debug
+            );
+
             if (!loginResponse || !loginResponse.code) {
-                throw new Error('Invalid login response');
+                throw new Error("Invalid login response");
             }
-            
-            const tokenResponse = await exchangeCodeForToken(config.issuerUrl, config.clientId, loginResponse.code, config.debug);
-            
+
+            const tokenResponse = await exchangeCodeForToken(
+                config.issuerUrl,
+                config.clientId,
+                loginResponse.code,
+                config.debug
+            );
+
             if (!tokenResponse || !tokenResponse.access_token) {
-                throw new Error('Invalid token response');
+                throw new Error("Invalid token response");
             }
 
             return {
-                status: 'success',
-                token: tokenResponse.access_token
+                status: "success",
+                token: tokenResponse.access_token,
             };
         } catch (innerError) {
             return {
-                status: 'error',
-                error: innerError instanceof Error ? innerError.message : 'Error in OAuth flow'
+                status: "error",
+                error:
+                    innerError instanceof Error
+                        ? innerError.message
+                        : "Error in OAuth flow",
             };
         }
-
     } catch (error) {
         return {
-            status: 'error',
-            error: error instanceof Error ? error.message : 'Unknown error occurred'
+            status: "error",
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred",
         };
     }
 }

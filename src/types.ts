@@ -4,6 +4,13 @@ export interface NtlmAuthConfig {
     debug?: boolean;
 }
 
+export interface ChallengeResponse {
+    success: boolean;
+    header: string | null
+    status: number | null
+    error?: string;
+}
+
 export interface NtlmAuthResult {
     status: 'challenge' | 'success' | 'error';
     headers?: Record<string, string>;

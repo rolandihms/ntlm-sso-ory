@@ -1,4 +1,9 @@
-import type {OAuthChallenge, LoginResponse, TokenResponse} from "./types";
+import type {
+    OAuthChallenge,
+    LoginResponse,
+    TokenResponse,
+    ChallengeResponse,
+} from "./types";
 import fetchClient from "./fetch-client";
 
 /**
@@ -7,7 +12,11 @@ import fetchClient from "./fetch-client";
  * @param data The data to log
  * @param color The color to use (default: white)
  */
-export function colorLog(label: string, data: any, color: string = "white"): void {
+export function colorLog(
+    label: string,
+    data: any,
+    color: string = "white"
+): void {
     const colors = {
         red: "\x1b[31m",
         green: "\x1b[32m",
@@ -16,9 +25,9 @@ export function colorLog(label: string, data: any, color: string = "white"): voi
         magenta: "\x1b[35m",
         cyan: "\x1b[36m",
         white: "\x1b[37m",
-        reset: "\x1b[0m"
+        reset: "\x1b[0m",
     };
-    
+
     const selectedColor = colors[color as keyof typeof colors] || colors.white;
     if (label && data !== undefined) {
         console.log(`${selectedColor}${label}${colors.reset}`, data);
@@ -31,9 +40,11 @@ export async function getNtlmChallenge(
     authHeader: string,
     issuerUrl: string,
     debug?: boolean
-): Promise<string | null> {
+): Promise<ChallengeResponse> {
     if (debug) {
-        console.log("++++++++++++++++++++++++++++++++++++++++++++ getNtlmChallenge");
+        console.log(
+            "++++++++++++++++++++++++++++++++++++++++++++ getNtlmChallenge"
+        );
         colorLog("getNtlmChallenge URL:", `${issuerUrl}sso/challenge`, "blue");
         colorLog("getNtlmChallenge Header:", authHeader, "blue");
     }
@@ -44,6 +55,17 @@ export async function getNtlmChallenge(
             Authorization: authHeader,
         },
     });
+    if (response.status !== 401) {
+        if (debug) {
+            colorLog("getNtlmChallenge Response Error:", response, "red");
+        }
+        return {
+            success: false,
+            header: null,
+            status: response.status,
+            error: `Error: ${response.statusText}`,
+        };
+    }
     if (debug) {
         colorLog("getNtlmChallenge Response:", response, "green");
     }
@@ -52,13 +74,15 @@ export async function getNtlmChallenge(
         if (debug) {
             colorLog("No NTLM Header:", authHeaderValue, "red");
         }
-        return null;
+        return {success: true, header: null, status: response.status};
     }
     if (debug) {
         colorLog("NTLM Header:", authHeaderValue, "yellow");
-        console.log("++++++++++++++++++++++++++++++++++++++++++++ //getNtlmChallenge");
+        console.log(
+            "++++++++++++++++++++++++++++++++++++++++++++ //getNtlmChallenge"
+        );
     }
-    return authHeaderValue;
+    return {success: true, header: authHeaderValue, status: response.status};
 }
 
 export async function getOAuthChallenge(
@@ -68,7 +92,9 @@ export async function getOAuthChallenge(
 ): Promise<OAuthChallenge> {
     const uuid = crypto.randomUUID();
     if (debug) {
-        console.log("++++++++++++++++++++++++++++++++++++++++++++ getOAuthChallenge");
+        console.log(
+            "++++++++++++++++++++++++++++++++++++++++++++ getOAuthChallenge"
+        );
         colorLog(
             "getOAuthChallenge URL:",
             `${issuerUrl}auth?response_type=code&client_id=${clientId}&state=${uuid}`,
@@ -83,7 +109,9 @@ export async function getOAuthChallenge(
     );
     if (debug) {
         colorLog("getOAuthChallenge Response:", response, "green");
-        console.log("++++++++++++++++++++++++++++++++++++++++++++// getOAuthChallenge");
+        console.log(
+            "++++++++++++++++++++++++++++++++++++++++++++// getOAuthChallenge"
+        );
     }
     return response.json();
 }
@@ -95,7 +123,9 @@ export async function processLogin(
     debug?: boolean
 ): Promise<LoginResponse> {
     if (debug) {
-        console.log("++++++++++++++++++++++++++++++++++++++++++++ processLogin");
+        console.log(
+            "++++++++++++++++++++++++++++++++++++++++++++ processLogin"
+        );
         colorLog("processLogin URL:", `${issuerUrl}login`, "blue");
         colorLog("processLogin Challenge:", challenge, "blue");
         colorLog("processLogin NTLM Token:", ntlmToken, "blue");
@@ -113,7 +143,9 @@ export async function processLogin(
     }
     if (debug) {
         colorLog("processLogin Response:", response, "green");
-        console.log("++++++++++++++++++++++++++++++++++++++++++++ //processLogin");
+        console.log(
+            "++++++++++++++++++++++++++++++++++++++++++++ //processLogin"
+        );
     }
     return response.json();
 }
@@ -125,7 +157,9 @@ export async function exchangeCodeForToken(
     debug?: boolean
 ): Promise<TokenResponse> {
     if (debug) {
-        console.log("++++++++++++++++++++++++++++++++++++++++++++ exchangeCodeForToken");
+        console.log(
+            "++++++++++++++++++++++++++++++++++++++++++++ exchangeCodeForToken"
+        );
         colorLog("exchangeCodeForToken URL:", `${issuerUrl}token`, "blue");
         colorLog("exchangeCodeForToken Client ID:", clientId, "blue");
         colorLog("exchangeCodeForToken Code:", code, "blue");
@@ -148,7 +182,32 @@ export async function exchangeCodeForToken(
         throw new Error(`Token exchange failed with status ${response.status}`);
     }
     if (debug) {
-        colorLog("++++++++++++++++++++++++++++++++++++++++++++ //exchangeCodeForToken", "", "yellow");
+        colorLog(
+            "++++++++++++++++++++++++++++++++++++++++++++ //exchangeCodeForToken",
+            "",
+            "yellow"
+        );
     }
     return response.json();
+}
+
+export function getNtlmMessageType(buffer: Buffer | Uint8Array): number | null {
+    // Check for "NTLMSSP\0" signature (ASCII)
+    const signature = String.fromCharCode(...buffer.slice(0, 8));
+    if (signature !== "NTLMSSP\0") {
+        return null; // Not an NTLM message
+    }
+
+    // Read the message type at offset 8 (4 bytes, little-endian)
+    const type =
+        buffer[8] + (buffer[9] << 8) + (buffer[10] << 16) + (buffer[11] << 24);
+    return type; // 1, 2, or 3
+}
+
+export function parseNtlmHeader(authorizationHeader: string): Buffer | null {
+    const prefix = "NTLM ";
+    if (!authorizationHeader.startsWith(prefix)) return null;
+
+    const base64 = authorizationHeader.slice(prefix.length);
+    return Buffer.from(base64, "base64");
 }
