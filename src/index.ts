@@ -7,6 +7,7 @@ import {
     getNtlmMessageType,
     parseNtlmHeader,
 } from "./utils";
+import { createRequestFetchClient } from "./fetch-client";
 
 export * from "./types";
 
@@ -14,6 +15,9 @@ export async function handleNtlmAuth(
     headers: Record<string, string>,
     config: NtlmAuthConfig
 ): Promise<NtlmAuthResult> {
+    // Create a new fetch client with a fresh cookie jar for this request lifecycle
+    const { fetchWithCookies, cleanupCookieJar } = createRequestFetchClient();
+    
     try {
         // Check if Authorization header is present
         if (!headers.authorization) {
@@ -41,22 +45,14 @@ export async function handleNtlmAuth(
             };
         }
         const type = getNtlmMessageType(ntlmBuffer);
-
-        // console.log("--------------------NTLM Message Type--------------------");
-        // console.log("NTLM Message Type:", type);
-        // console.log(
-        //     "----------------------------------------------------------"
-        // );
        
         if (type === 1) {
-            // console.log(
-            //     "--------------------Process NTLM Type 1/3 message--------------------"
-            // );
             // Process NTLM Type 1/3 message
             const ntlmType2 = await getNtlmChallenge(
                 headers.authorization,
                 config.issuerUrl,
-                config.debug
+                config.debug,
+                fetchWithCookies
             );
 
             //Ensure a valid response is received form the Challenge Endpoint
@@ -77,16 +73,15 @@ export async function handleNtlmAuth(
                 };
             }
         }
-        // console.log(
-        //     "--------------------HAS NTLM Type 3 message--------------------"
-        // );
+
         // If we didn't get a Type 2 message, it was likely a Type 3 message
         // Process OAuth flow
         try {
             const oauthChallenge = await getOAuthChallenge(
                 config.issuerUrl,
                 config.clientId,
-                config.debug
+                config.debug,
+                fetchWithCookies
             );
 
             if (!oauthChallenge || !oauthChallenge.challenge) {
@@ -97,7 +92,8 @@ export async function handleNtlmAuth(
                 config.issuerUrl,
                 oauthChallenge.challenge,
                 headers.authorization,
-                config.debug
+                config.debug,
+                fetchWithCookies
             );
 
             if (!loginResponse || !loginResponse.code) {
@@ -108,7 +104,8 @@ export async function handleNtlmAuth(
                 config.issuerUrl,
                 config.clientId,
                 loginResponse.code,
-                config.debug
+                config.debug,
+                fetchWithCookies
             );
 
             if (!tokenResponse || !tokenResponse.access_token) {
@@ -136,5 +133,8 @@ export async function handleNtlmAuth(
                     ? error.message
                     : "Unknown error occurred",
         };
+    } finally {
+        // Clean up the cookie jar to ensure cookies don't persist between request lifecycles
+        await cleanupCookieJar();
     }
 }

@@ -12,6 +12,31 @@ function createFetchClient(): typeof fetch {
     }
 }
 
-const fetchClient = createFetchClient();
+// Create a fetch client with a cookie jar that can be cleaned up
+export function createRequestFetchClient(): { 
+    fetchWithCookies: typeof fetch; 
+    cleanupCookieJar: () => Promise<void>;
+} {
+    if (process.env.NODE_ENV === 'test') {
+        // For tests, return a simpler version
+        return {
+            fetchWithCookies: fetch,
+            cleanupCookieJar: async () => {} // No-op for tests
+        };
+    } else {
+        const cookieJar = new CookieJar();
+        const fetchWithCookies = fetchCookie(fetch, cookieJar);
+        
+        // Function to clean up all cookies from the jar
+        const cleanupCookieJar = async (): Promise<void> => {
+            // Use the removeAllCookies method to clear all cookies from the jar
+            await cookieJar.removeAllCookies();
+        };
+        
+        return { fetchWithCookies, cleanupCookieJar };
+    }
+}
 
+// Keep the default export for backward compatibility
+const fetchClient = createFetchClient();
 export default fetchClient;

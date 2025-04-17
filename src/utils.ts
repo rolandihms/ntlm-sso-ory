@@ -39,7 +39,8 @@ export function colorLog(
 export async function getNtlmChallenge(
     authHeader: string,
     issuerUrl: string,
-    debug?: boolean
+    debug?: boolean,
+    customFetch: typeof fetch = fetchClient
 ): Promise<ChallengeResponse> {
     if (debug) {
         console.log(
@@ -49,7 +50,7 @@ export async function getNtlmChallenge(
         colorLog("getNtlmChallenge Header:", authHeader, "blue");
     }
 
-    const response = await fetchClient(`${issuerUrl}sso/challenge`, {
+    const response = await customFetch(`${issuerUrl}sso/challenge`, {
         method: "GET",
         headers: {
             Authorization: authHeader,
@@ -88,7 +89,8 @@ export async function getNtlmChallenge(
 export async function getOAuthChallenge(
     issuerUrl: string,
     clientId: string,
-    debug?: boolean
+    debug?: boolean,
+    customFetch: typeof fetch = fetchClient
 ): Promise<OAuthChallenge> {
     const uuid = crypto.randomUUID();
     if (debug) {
@@ -101,7 +103,7 @@ export async function getOAuthChallenge(
             "blue"
         );
     }
-    const response = await fetchClient(
+    const response = await customFetch(
         `${issuerUrl}auth?response_type=code&client_id=${clientId}&state=${uuid}`,
         {
             method: "GET",
@@ -120,7 +122,8 @@ export async function processLogin(
     issuerUrl: string,
     challenge: string,
     ntlmToken: string,
-    debug?: boolean
+    debug?: boolean,
+    customFetch: typeof fetch = fetchClient
 ): Promise<LoginResponse> {
     if (debug) {
         console.log(
@@ -130,7 +133,7 @@ export async function processLogin(
         colorLog("processLogin Challenge:", challenge, "blue");
         colorLog("processLogin NTLM Token:", ntlmToken, "blue");
     }
-    const response = await fetchClient(`${issuerUrl}login`, {
+    const response = await customFetch(`${issuerUrl}login`, {
         method: "POST",
         body: JSON.stringify({
             challenge,
@@ -154,7 +157,8 @@ export async function exchangeCodeForToken(
     issuerUrl: string,
     clientId: string,
     code: string,
-    debug?: boolean
+    debug?: boolean,
+    customFetch: typeof fetch = fetchClient
 ): Promise<TokenResponse> {
     if (debug) {
         console.log(
@@ -164,7 +168,7 @@ export async function exchangeCodeForToken(
         colorLog("exchangeCodeForToken Client ID:", clientId, "blue");
         colorLog("exchangeCodeForToken Code:", code, "blue");
     }
-    const response = await fetchClient(`${issuerUrl}token`, {
+    const response = await customFetch(`${issuerUrl}token`, {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",
