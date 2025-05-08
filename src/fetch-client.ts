@@ -16,12 +16,14 @@ function createFetchClient(): typeof fetch {
 export function createRequestFetchClient(): { 
     fetchWithCookies: typeof fetch; 
     cleanupCookieJar: () => Promise<void>;
+    getCookies: (domain?: string) => Promise<string[]>;
 } {
     if (process.env.NODE_ENV === 'test') {
         // For tests, return a simpler version
         return {
             fetchWithCookies: fetch,
-            cleanupCookieJar: async () => {} // No-op for tests
+            cleanupCookieJar: async () => {}, // No-op for tests
+            getCookies: async () => [] // No cookies in tests
         };
     } else {
         const cookieJar = new CookieJar();
@@ -33,7 +35,32 @@ export function createRequestFetchClient(): {
             await cookieJar.removeAllCookies();
         };
         
-        return { fetchWithCookies, cleanupCookieJar };
+        // Function to get cookies for debugging
+        const getCookies = async (domain?: string): Promise<string[]> => {
+            if (domain) {
+                try {
+                    const cookies = await cookieJar.getCookies(domain);
+                    return cookies.map(cookie => cookie.toString());
+                } catch (error) {
+                    console.warn(`Error getting cookies for domain ${domain}:`, error);
+                    return [];
+                }
+            } else {
+                // Get all cookies from the jar without filtering by domain
+                return new Promise((resolve) => {
+                    cookieJar.store.getAllCookies((err, cookies) => {
+                        if (err || !cookies) {
+                            console.warn('Error getting all cookies:', err);
+                            resolve([]);
+                        } else {
+                            resolve(cookies.map(cookie => cookie.toString()));
+                        }
+                    });
+                });
+            }
+        };
+        
+        return { fetchWithCookies, cleanupCookieJar, getCookies };
     }
 }
 

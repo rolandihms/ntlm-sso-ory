@@ -38,6 +38,7 @@ export function colorLog(
 
 export async function getNtlmChallenge(
     authHeader: string,
+    cookie: string,
     issuerUrl: string,
     debug?: boolean,
     customFetch: typeof fetch = fetchClient
@@ -54,8 +55,28 @@ export async function getNtlmChallenge(
         method: "GET",
         headers: {
             Authorization: authHeader,
+            cookie: cookie,
         },
     });
+
+    let cookieHeader: string = "";
+    if (response.headers.has("set-cookie")) {
+        let tempCookieheader = response.headers.get("set-cookie") || "";
+        cookieHeader = tempCookieheader;
+        if (cookieHeader) {
+            console.log("Custom Set-Cookie Header:", cookieHeader);
+        }
+    } else {
+        console.log("No custom Set-Cookie header found.");
+    }
+
+    if (debug) {
+        // Log cookie information if present
+        if (cookieHeader) {
+            colorLog("NTLM Session Cookie:", cookieHeader, "magenta");
+        }
+    }
+
     if (response.status !== 401) {
         if (debug) {
             colorLog("getNtlmChallenge Response Error:", response, "red");
@@ -65,6 +86,7 @@ export async function getNtlmChallenge(
             header: null,
             status: response.status,
             error: `Error: ${response.statusText}`,
+            cookie: cookieHeader,
         };
     }
     if (debug) {
@@ -75,7 +97,12 @@ export async function getNtlmChallenge(
         if (debug) {
             colorLog("No NTLM Header:", authHeaderValue, "red");
         }
-        return {success: true, header: null, status: response.status};
+        return {
+            success: true,
+            header: null,
+            status: response.status,
+            cookie: cookieHeader,
+        };
     }
     if (debug) {
         colorLog("NTLM Header:", authHeaderValue, "yellow");
@@ -83,12 +110,18 @@ export async function getNtlmChallenge(
             "++++++++++++++++++++++++++++++++++++++++++++ //getNtlmChallenge"
         );
     }
-    return {success: true, header: authHeaderValue, status: response.status};
+    return {
+        success: true,
+        header: authHeaderValue,
+        status: response.status,
+        cookie: cookieHeader,
+    };
 }
 
 export async function getOAuthChallenge(
     issuerUrl: string,
     clientId: string,
+    cookie: string,
     debug?: boolean,
     customFetch: typeof fetch = fetchClient
 ): Promise<OAuthChallenge> {
@@ -107,6 +140,9 @@ export async function getOAuthChallenge(
         `${issuerUrl}auth?response_type=code&client_id=${clientId}&state=${uuid}`,
         {
             method: "GET",
+            headers:{
+                cookie: cookie,
+            }
         }
     );
     if (debug) {
@@ -122,6 +158,7 @@ export async function processLogin(
     issuerUrl: string,
     challenge: string,
     ntlmToken: string,
+    cookie: string,
     debug?: boolean,
     customFetch: typeof fetch = fetchClient
 ): Promise<LoginResponse> {
@@ -135,6 +172,10 @@ export async function processLogin(
     }
     const response = await customFetch(`${issuerUrl}login`, {
         method: "POST",
+        headers:{
+            "Content-Type": "application/json",
+            cookie: cookie,
+        },
         body: JSON.stringify({
             challenge,
             ssoToken: ntlmToken,
@@ -195,6 +236,45 @@ export async function exchangeCodeForToken(
     return response.json();
 }
 
+export async function getUserDetails(
+    issuerUrl: string,
+    accessToken: string,
+    debug?: boolean,
+    customFetch: typeof fetch = fetchClient
+): Promise<any> {
+    if (debug) {
+        console.log(
+            "++++++++++++++++++++++++++++++++++++++++++++ getUserDetails"
+        );
+        colorLog("getUserDetails URL:", `${issuerUrl}me`, "blue");
+    }
+
+    const response = await customFetch(`${issuerUrl}me`, {
+        method: "GET",
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+        },
+    });
+
+    if (!response.ok) {
+        if (debug) {
+            colorLog("getUserDetails Response Error:", response, "red");
+        }
+        throw new Error(
+            `Failed to get user details: ${response.status} ${response.statusText}`
+        );
+    }
+
+    if (debug) {
+        colorLog("getUserDetails Response:", response, "green");
+        console.log(
+            "++++++++++++++++++++++++++++++++++++++++++++ //getUserDetails"
+        );
+    }
+
+    return response.json();
+}
+
 export function getNtlmMessageType(buffer: Buffer | Uint8Array): number | null {
     // Check for "NTLMSSP\0" signature (ASCII)
     const signature = String.fromCharCode(...buffer.slice(0, 8));
@@ -214,4 +294,19 @@ export function parseNtlmHeader(authorizationHeader: string): Buffer | null {
 
     const base64 = authorizationHeader.slice(prefix.length);
     return Buffer.from(base64, "base64");
+}
+
+export function extractCookieDetails(cookieString: string) {
+    const trimmed = cookieString.trim();
+
+    // Extract name and value
+    const nameValueMatch = trimmed.match(/^([^=]+)=([^;]+)/);
+    const name = nameValueMatch ? nameValueMatch[1] : null;
+    const value = nameValueMatch ? nameValueMatch[2] : null;
+
+    // Extract Max-Age value
+    const maxAgeMatch = trimmed.match(/Max-Age=(\d+)/i);
+    const maxAge = maxAgeMatch ? parseInt(maxAgeMatch[1], 10) : null;
+
+    return {name, value, maxAge};
 }

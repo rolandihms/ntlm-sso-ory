@@ -6,18 +6,26 @@ import {
     exchangeCodeForToken,
     getNtlmMessageType,
     parseNtlmHeader,
+    getUserDetails,
+    colorLog,
+    extractCookieDetails,
 } from "./utils";
-import { createRequestFetchClient } from "./fetch-client";
+import {createRequestFetchClient} from "./fetch-client";
 
 export * from "./types";
+//Export the extractCookieDetails function directly
+export {extractCookieDetails};
+// Export the getUserDetails function directly
+export {getUserDetails};
 
 export async function handleNtlmAuth(
     headers: Record<string, string>,
     config: NtlmAuthConfig
 ): Promise<NtlmAuthResult> {
     // Create a new fetch client with a fresh cookie jar for this request lifecycle
-    const { fetchWithCookies, cleanupCookieJar } = createRequestFetchClient();
-    
+    const {fetchWithCookies, cleanupCookieJar, getCookies} =
+        createRequestFetchClient();
+
     try {
         // Check if Authorization header is present
         if (!headers.authorization) {
@@ -26,6 +34,7 @@ export async function handleNtlmAuth(
                 headers: {
                     "WWW-Authenticate": "NTLM",
                 },
+                cookie: headers.cookie || "",
             };
         }
 
@@ -45,11 +54,12 @@ export async function handleNtlmAuth(
             };
         }
         const type = getNtlmMessageType(ntlmBuffer);
-       
+
         if (type === 1) {
             // Process NTLM Type 1/3 message
             const ntlmType2 = await getNtlmChallenge(
                 headers.authorization,
+                headers.cookie,
                 config.issuerUrl,
                 config.debug,
                 fetchWithCookies
@@ -70,6 +80,7 @@ export async function handleNtlmAuth(
                             ? ntlmType2.header?.toString()
                             : "",
                     },
+                    cookie: ntlmType2.cookie ? ntlmType2.cookie : "no-cookie",
                 };
             }
         }
@@ -77,9 +88,17 @@ export async function handleNtlmAuth(
         // If we didn't get a Type 2 message, it was likely a Type 3 message
         // Process OAuth flow
         try {
+            // If debug is enabled, log cookies after NTLM challenge
+            if (config.debug) {
+                const url = new URL(config.issuerUrl);
+                const cookies = await getCookies(url.hostname);
+                colorLog("Cookies after NTLM challenge:", cookies, "cyan");
+            }
+
             const oauthChallenge = await getOAuthChallenge(
                 config.issuerUrl,
                 config.clientId,
+                headers.cookie,
                 config.debug,
                 fetchWithCookies
             );
@@ -88,10 +107,18 @@ export async function handleNtlmAuth(
                 throw new Error("Invalid OAuth challenge response");
             }
 
+            // If debug is enabled, log cookies before processing login
+            if (config.debug) {
+                const url = new URL(config.issuerUrl);
+                const cookies = await getCookies(url.hostname);
+                colorLog("Cookies before login:", cookies, "cyan");
+            }
+
             const loginResponse = await processLogin(
                 config.issuerUrl,
                 oauthChallenge.challenge,
                 headers.authorization,
+                headers.cookie,
                 config.debug,
                 fetchWithCookies
             );

@@ -9,6 +9,7 @@ export interface ChallengeResponse {
     header: string | null
     status: number | null
     error?: string;
+    cookie?: string;
 }
 
 export interface NtlmAuthResult {
@@ -16,6 +17,7 @@ export interface NtlmAuthResult {
     headers?: Record<string, string>;
     token?: string;
     error?: string;
+    cookie?: string;
 }
 
 export interface OAuthChallenge {
