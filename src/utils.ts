@@ -55,21 +55,16 @@ export async function getNtlmChallenge(
         method: "GET",
         headers: {
             Authorization: authHeader,
-            cookie: cookie,
+            //cookie: cookie,
         },
+        //credentials: "include"
     });
 
     let cookieHeader: string = "";
     if (response.headers.has("set-cookie")) {
         let tempCookieheader = response.headers.get("set-cookie") || "";
         cookieHeader = tempCookieheader;
-        if (cookieHeader) {
-            console.log("Custom Set-Cookie Header:", cookieHeader);
-        }
-    } else {
-        console.log("No custom Set-Cookie header found.");
     }
-
     if (debug) {
         // Log cookie information if present
         if (cookieHeader) {
@@ -140,9 +135,10 @@ export async function getOAuthChallenge(
         `${issuerUrl}auth?response_type=code&client_id=${clientId}&state=${uuid}`,
         {
             method: "GET",
-            headers:{
-                cookie: cookie,
-            }
+            // headers:{
+            //     cookie: cookie,
+            // }
+            credentials: "include"
         }
     );
     if (debug) {
@@ -174,7 +170,7 @@ export async function processLogin(
         method: "POST",
         headers:{
             "Content-Type": "application/json",
-            cookie: cookie,
+            "Cookie": cookie,
         },
         body: JSON.stringify({
             challenge,
@@ -246,16 +242,16 @@ export async function getUserDetails(
         console.log(
             "++++++++++++++++++++++++++++++++++++++++++++ getUserDetails"
         );
-        colorLog("getUserDetails URL:", `${issuerUrl}me`, "blue");
+        colorLog("getUserDetails URL:", `${issuerUrl}sso/me`, "blue");
     }
 
-    const response = await customFetch(`${issuerUrl}me`, {
+    const response = await customFetch(`${issuerUrl}sso/me`, {
         method: "GET",
         headers: {
             Authorization: `Bearer ${accessToken}`,
         },
     });
-
+    
     if (!response.ok) {
         if (debug) {
             colorLog("getUserDetails Response Error:", response, "red");

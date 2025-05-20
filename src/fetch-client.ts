@@ -17,13 +17,15 @@ export function createRequestFetchClient(): {
     fetchWithCookies: typeof fetch; 
     cleanupCookieJar: () => Promise<void>;
     getCookies: (domain?: string) => Promise<string[]>;
+    setCookie: (cookie: string, url?: string) => Promise<void>;
 } {
     if (process.env.NODE_ENV === 'test') {
         // For tests, return a simpler version
         return {
             fetchWithCookies: fetch,
             cleanupCookieJar: async () => {}, // No-op for tests
-            getCookies: async () => [] // No cookies in tests
+            getCookies: async () => [], // No cookies in tests
+            setCookie: async () => {} // No-op for tests
         };
     } else {
         const cookieJar = new CookieJar();
@@ -60,7 +62,18 @@ export function createRequestFetchClient(): {
             }
         };
         
-        return { fetchWithCookies, cleanupCookieJar, getCookies };
+        // Function to set a cookie in the jar
+        const setCookie = async (cookie: string, url?: string): Promise<void> => {
+            try {
+                // Default to a general URL if none provided
+                const cookieUrl = url || 'http://localhost/';
+                await cookieJar.setCookie(cookie, cookieUrl);
+            } catch (error) {
+                console.warn(`Error setting cookie for URL ${url || 'default'}:`, error);
+            }
+        };
+        
+        return { fetchWithCookies, cleanupCookieJar, getCookies, setCookie };
     }
 }
 

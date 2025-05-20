@@ -23,7 +23,7 @@ export async function handleNtlmAuth(
     config: NtlmAuthConfig
 ): Promise<NtlmAuthResult> {
     // Create a new fetch client with a fresh cookie jar for this request lifecycle
-    const {fetchWithCookies, cleanupCookieJar, getCookies} =
+    const {fetchWithCookies, cleanupCookieJar, getCookies, setCookie} =
         createRequestFetchClient();
 
     try {
@@ -54,6 +54,12 @@ export async function handleNtlmAuth(
             };
         }
         const type = getNtlmMessageType(ntlmBuffer);
+
+
+        //Set teh cookie in the jar
+        if (headers.cookie) {
+            await setCookie(headers.cookie);
+        }
 
         if (type === 1) {
             // Process NTLM Type 1/3 message
@@ -90,11 +96,10 @@ export async function handleNtlmAuth(
         try {
             // If debug is enabled, log cookies after NTLM challenge
             if (config.debug) {
-                const url = new URL(config.issuerUrl);
-                const cookies = await getCookies(url.hostname);
+                const cookies = await getCookies();
                 colorLog("Cookies after NTLM challenge:", cookies, "cyan");
             }
-
+            
             const oauthChallenge = await getOAuthChallenge(
                 config.issuerUrl,
                 config.clientId,
@@ -109,11 +114,10 @@ export async function handleNtlmAuth(
 
             // If debug is enabled, log cookies before processing login
             if (config.debug) {
-                const url = new URL(config.issuerUrl);
-                const cookies = await getCookies(url.hostname);
+                const cookies = await getCookies();
                 colorLog("Cookies before login:", cookies, "cyan");
             }
-
+           
             const loginResponse = await processLogin(
                 config.issuerUrl,
                 oauthChallenge.challenge,
@@ -138,7 +142,10 @@ export async function handleNtlmAuth(
             if (!tokenResponse || !tokenResponse.access_token) {
                 throw new Error("Invalid token response");
             }
-
+            // If debug is enabled, log final token
+            if (config.debug) {
+                colorLog("Access Token:", tokenResponse.access_token, "cyan");
+            }
             return {
                 status: "success",
                 token: tokenResponse.access_token,

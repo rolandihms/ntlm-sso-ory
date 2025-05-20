@@ -48,7 +48,7 @@ describe('utils', () => {
             
             (fetchClient as jest.Mock).mockResolvedValue(mockResponse);
             
-            const result = await getNtlmChallenge('NTLM TlRMTVNTUABB...', 'https://example.com/');
+            const result = await getNtlmChallenge('NTLM TlRMTVNTUABB...',"", 'https://example.com/', false);
             
             expect(result).toEqual({
                 success: true,
@@ -79,7 +79,7 @@ describe('utils', () => {
             
             (fetchClient as jest.Mock).mockResolvedValue(mockResponse);
             
-            const result = await getNtlmChallenge('NTLM TlRMTVNTUABB...', 'https://example.com/');
+            const result = await getNtlmChallenge('NTLM TlRMTVNTUABB...',"", 'https://example.com/');
             
             expect(result).toEqual({
                 success: true,
@@ -99,7 +99,7 @@ describe('utils', () => {
             
             (fetchClient as jest.Mock).mockResolvedValue(mockResponse);
             
-            const result = await getNtlmChallenge('NTLM TlRMTVNTUABB...', 'https://example.com/');
+            const result = await getNtlmChallenge('NTLM TlRMTVNTUABB...',"", 'https://example.com/');
             
             expect(result).toEqual({
                 success: false,
@@ -119,7 +119,7 @@ describe('utils', () => {
             
             (fetchClient as jest.Mock).mockResolvedValue(mockResponse);
             
-            const result = await getOAuthChallenge('https://example.com/', 'test-client-id');
+            const result = await getOAuthChallenge('https://example.com/',"", 'test-client-id');
             
             expect(result).toEqual({ challenge: 'test-challenge' });
             expect(fetchClient).toHaveBeenCalledWith(
@@ -139,7 +139,7 @@ describe('utils', () => {
             // Spy on console.log to verify debug output
             const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
             
-            await getOAuthChallenge('https://example.com/', 'test-client-id', true);
+            await getOAuthChallenge('https://example.com/', "",'test-client-id', true);
             
             expect(consoleLogSpy).toHaveBeenCalled();
             
@@ -159,7 +159,8 @@ describe('utils', () => {
             const result = await processLogin(
                 'https://example.com/',
                 'test-challenge',
-                'NTLM test-token'
+                'NTLM test-token',
+                ""
             );
             
             expect(result).toEqual({ code: 'test-auth-code' });
@@ -183,7 +184,8 @@ describe('utils', () => {
             await expect(processLogin(
                 'https://example.com/',
                 'test-challenge',
-                'NTLM test-token'
+                'NTLM test-token',
+                ""	
             )).rejects.toThrow('Login failed with status 401');
         });
         
@@ -202,6 +204,7 @@ describe('utils', () => {
                 'https://example.com/',
                 'test-challenge',
                 'NTLM test-token',
+                "",	
                 true
             );
             
